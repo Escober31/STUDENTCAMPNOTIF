@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="CampusNotify — Your school announcements, events, and notifications hub. Login to stay connected.">
+  <title>CampusNotify — Login</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <div class="login-page">
+    <!-- Hero Side with animated gradient & glowing purple/blue orbs -->
+    <div class="login-hero">
+      <div class="hero-ambient-glow"></div>
+      <div class="hero-orb orb-purple-1"></div>
+      <div class="hero-orb orb-blue-1"></div>
+      <div class="hero-orb orb-purple-2"></div>
+      <div class="hero-orb orb-blue-2"></div>
+
+      <div class="login-hero-content animate-fade-in">
+        <div class="hero-logo">🔔</div>
+        <h1><span class="text-gradient">CampusNotify</span></h1>
+        <p>Your centralized hub for school announcements, events, and real-time notifications. Stay informed, stay
+          connected.</p>
+
+        <div class="login-features">
+          <div class="login-feature">
+            <div class="feature-icon">
+              <svg class="feature-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 5 6 9H2v6h4l5 4V5z"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+              </svg>
+            </div>
+            <span>Announcements</span>
+          </div>
+          <div class="login-feature">
+            <div class="feature-icon">
+              <svg class="feature-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <span>Events</span>
+          </div>
+          <div class="login-feature">
+            <div class="feature-icon">
+              <svg class="feature-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </div>
+            <span>Notifications</span>
+          </div>
+          <div class="login-feature">
+            <div class="feature-icon">
+              <svg class="feature-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="9" rx="1"/>
+                <rect x="14" y="3" width="7" height="5" rx="1"/>
+                <rect x="14" y="12" width="7" height="9" rx="1"/>
+                <rect x="3" y="16" width="7" height="5" rx="1"/>
+              </svg>
+            </div>
+            <span>Dashboard</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Form Side -->
+    <div class="login-form-container animate-slide-up">
+      <h2>Welcome Back</h2>
+      <p class="login-subtitle">Sign in to your CampusNotify account</p>
+
+      <form class="login-form" id="loginForm" onsubmit="handleLogin(event)" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <div class="input-icon-wrapper">
+            <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="20" height="16" x="2" y="4" rx="2"/>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+            <input type="email" id="email" class="form-input with-leading-icon" placeholder="you@campus.edu" required autocomplete="email" oninput="clearFieldError('email')">
+          </div>
+          <div class="field-error-msg" id="emailError" role="alert" aria-live="polite"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-icon-wrapper password-input-wrapper">
+            <svg class="input-leading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="password" class="form-input with-leading-icon with-trailing-icon" placeholder="Enter your password" required autocomplete="current-password" oninput="clearFieldError('password')">
+            <button type="button" class="password-toggle-btn" id="togglePasswordBtn" onclick="togglePasswordVisibility('password', this)" aria-label="Show password" title="Show/Hide password">
+              <svg class="eye-icon eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="eye-icon eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none;">
+                <path d="m9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                <line x1="2" x2="22" y1="2" y2="22"/>
+              </svg>
+            </button>
+          </div>
+          <div class="field-error-msg" id="passwordError" role="alert" aria-live="polite"></div>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 0.65rem;">
+          <div class="form-checkbox-group">
+            <input type="checkbox" id="remember" class="form-checkbox">
+            <label for="remember" style="font-size:0.82rem; color:var(--text-secondary); cursor:pointer;">Remember me</label>
+          </div>
+          <a href="#" class="login-inline-link" onclick="handleForgotPassword(event)">Forgot Password?</a>
+        </div>
+
+        <div id="activeSessionBadge" style="display:none; margin-bottom:0.65rem; padding:0.5rem 0.75rem; background:var(--bg-glass); border:1px solid var(--primary-500); border-radius:var(--radius-md); text-align:center;">
+          <p style="font-size:0.8rem; margin-bottom:0.35rem; color:var(--text-primary);">
+            Currently signed in as <strong id="activeSessionUser" style="color:var(--primary-300);"></strong>
+          </p>
+          <div style="display:flex; gap:var(--space-sm); justify-content:center;">
+            <a href="student_dashboard.html" class="btn btn-primary btn-sm">Continue to Dashboard →</a>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="handleLogoutAndStay()">Switch Account</button>
+          </div>
+        </div>
+
+        <button type="submit" class="login-btn-gradient w-full" id="loginBtn">
+          <span class="btn-spinner" id="loginSpinner" style="display:none;" aria-hidden="true">
+            <svg class="spinner-svg" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.25)" stroke-width="3"></circle>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="#ffffff" stroke-width="3" stroke-linecap="round"></path>
+            </svg>
+          </span>
+          <span id="loginBtnText">Sign In</span>
+        </button>
+
+        <!-- Create Account link for both Student & Admin -->
+        <div id="createAccountRow"
+          style="text-align:center; margin-top:0.6rem; margin-bottom:0.5rem; animation: fadeIn 300ms ease;">
+          <p style="font-size:0.82rem; color:var(--text-secondary);" id="createAccountPrompt">
+            Don't have a student account? <a href="#" onclick="openCreateAccountModal(event)" class="auth-link">Create Account →</a>
+          </p>
+        </div>
+      </form>
+
+      <!-- Compact Demo Logins Bar -->
+      <div class="login-demo-bar">
+        <div class="login-demo-header">
+          <span>⚡ Quick Demo Logins</span>
+          <span style="font-size:0.68rem; color:var(--text-muted); font-weight:400;">(Click to fill)</span>
+        </div>
+        <div class="login-demo-chips">
+          <button type="button" class="demo-chip" onclick="fillDemo('alex.rivera@campus.edu', 'password123')" title="Alex Rivera (Student)">
+            🎓 Alex <span class="demo-role">Student</span>
+          </button>
+          <button type="button" class="demo-chip" onclick="fillDemo('jordan.miles@campus.edu', 'password123')" title="Jordan Miles (Student)">
+            🎓 Jordan <span class="demo-role">Student</span>
+          </button>
+          <button type="button" class="demo-chip" onclick="fillDemo('priya.shah@campus.edu', 'password123')" title="Priya Shah (Student)">
+            🎓 Priya <span class="demo-role">Student</span>
+          </button>
+          <button type="button" class="demo-chip" onclick="fillDemo('marcus.vance@campus.edu', 'password123')" title="Marcus Vance (Student)">
+            🎓 Marcus <span class="demo-role">Student</span>
+          </button>
+          <button type="button" class="demo-chip" onclick="fillDemo('elena.rostova@campus.edu', 'password123')" title="Elena Rostova (Student)">
+            🎓 Elena <span class="demo-role">Student</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    const selectedRole = 'student';
+
+    function clearFieldError(fieldId) {
+      const input = document.getElementById(fieldId);
+      const err = document.getElementById(`${fieldId}Error`);
+      if (input) input.classList.remove('has-error');
+      if (err) {
+        err.textContent = '';
+        err.style.display = 'none';
+      }
+    }
+
+    function clearErrors() {
+      clearFieldError('email');
+      clearFieldError('password');
+    }
+
+    function showFieldError(fieldId, message) {
+      const input = document.getElementById(fieldId);
+      const err = document.getElementById(`${fieldId}Error`);
+      if (input) input.classList.add('has-error');
+      if (err) {
+        err.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${message}</span>`;
+        err.style.display = 'flex';
+      }
+    }
+
+    function handleForgotPassword(e) {
+      if (e) e.preventDefault();
+      UI.toast('Forgot Password request received. For this demo, please click any Demo Login pill below or use password123.', 'info');
+    }
+
+    function fillDemo(email, pwd) {
+      clearErrors();
+      document.getElementById('email').value = email;
+      document.getElementById('password').value = pwd;
+      selectedRole = 'student';
+      UI.toast('Filled demo credentials for Student!', 'info');
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+
+      const eyeOpen = btn.querySelector('.eye-open');
+      const eyeClosed = btn.querySelector('.eye-closed');
+      if (eyeOpen && eyeClosed) {
+        eyeOpen.style.display = isPassword ? 'none' : 'block';
+        eyeClosed.style.display = isPassword ? 'block' : 'none';
+      }
+      btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+    }
+
+    function handleLogoutAndStay() {
+      localStorage.removeItem('campusnotify_user');
+      localStorage.removeItem('campusnotify_role');
+      sessionStorage.removeItem('campusnotify_user');
+      sessionStorage.removeItem('campusnotify_role');
+      const badge = document.getElementById('activeSessionBadge');
+      if (badge) badge.style.display = 'none';
+      UI.toast('Signed out. Please enter credentials to sign in.', 'info');
+    }
+
+    function openCreateAccountModal(e) {
+      if (e) e.preventDefault();
+      document.getElementById('createModalTitle').innerHTML = '🎓 Create Student Account';
+      document.getElementById('newName').placeholder = 'Alex Rivera';
+      document.getElementById('studentSpecificFields').style.display = 'grid';
+      document.getElementById('createAccountForm').reset();
+      UI.openModal('createAccountModal');
+    }
+
+    function handleCreateAccount(e) {
+      e.preventDefault();
+      const name = document.getElementById('newName').value.trim();
+      const email = document.getElementById('newEmail').value.trim();
+      const pw = document.getElementById('newPw').value;
+      const pwConfirm = document.getElementById('newPwConfirm').value;
+      const dept = document.getElementById('newDept')?.value || 'Computer Science';
+      const year = document.getElementById('newYear')?.value || '1st Year';
+
+      if (!name || !email || !pw) {
+        UI.toast('Please fill in all required fields.', 'warning');
+        return;
+      }
+
+      if (pw !== pwConfirm) {
+        UI.toast('Passwords do not match!', 'error');
+        return;
+      }
+
+      const newUser = Auth.registerUser({
+        name,
+        email,
+        password: pw,
+        role: 'student',
+        department: dept,
+        year: year,
+        title: ''
+      });
+
+      UI.closeModal('createAccountModal');
+      UI.toast(`Student account created for ${name}! Signing in...`, 'success');
+
+      // Pre-fill fields on login form
+      document.getElementById('email').value = email;
+      document.getElementById('password').value = pw;
+
+      // Automatically sign in with the newly created profile
+      setTimeout(() => {
+        Auth.loginWithUser(newUser);
+      }, 700);
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      clearErrors();
+      const emailInput = document.getElementById('email');
+      const passwordInput = document.getElementById('password');
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      const remember = document.getElementById('remember')?.checked ?? true;
+      const btn = document.getElementById('loginBtn');
+      const spinner = document.getElementById('loginSpinner');
+      const btnText = document.getElementById('loginBtnText');
+
+      let hasEmpty = false;
+      if (!email) {
+        showFieldError('email', 'Email address is required.');
+        emailInput.focus();
+        hasEmpty = true;
+      }
+      if (!password) {
+        showFieldError('password', 'Password is required.');
+        if (!hasEmpty) passwordInput.focus();
+        hasEmpty = true;
+      }
+      if (hasEmpty) {
+        return;
+      }
+
+      if (spinner) spinner.style.display = 'inline-flex';
+      if (btnText) btnText.textContent = 'Verifying...';
+      btn.disabled = true;
+
+      setTimeout(() => {
+        // Strict credential validation
+        const authResult = Auth.authenticate(email, password, selectedRole, remember);
+
+        if (!authResult.success) {
+          if (spinner) spinner.style.display = 'none';
+          if (btnText) btnText.textContent = 'Sign In';
+          btn.disabled = false;
+
+          const msg = (authResult.message || '').toLowerCase();
+          if (msg.includes('incorrect password') || msg.includes('password')) {
+            showFieldError('password', authResult.message);
+            passwordInput.focus();
+          } else if (msg.includes('email') || msg.includes('account') || msg.includes('user')) {
+            showFieldError('email', authResult.message);
+            emailInput.focus();
+          } else {
+            showFieldError('email', authResult.message);
+          }
+          UI.toast(authResult.message, 'error');
+          return;
+        }
+
+        if (btnText) btnText.textContent = 'Signing in...';
+        UI.toast(`Welcome, ${authResult.user.name}!`, 'success');
+        // Set flag for daily login reward auto-prompt (students only)
+        if (authResult.user.role === 'student') {
+          localStorage.setItem('campusnotify_just_logged_in', 'true');
+        }
+        setTimeout(() => {
+          window.location.href = 'student_dashboard.html';
+        }, 500);
+      }, 550);
+    }
+
+    // Display active session if user is logged in, but DO NOT auto-redirect away
+    // so that opening the website always displays the Login page first.
+    window.addEventListener('DOMContentLoaded', () => {
+      if (Auth.isLoggedIn()) {
+        const user = Auth.getUser();
+        if (user) {
+          const badge = document.getElementById('activeSessionBadge');
+          const userSpan = document.getElementById('activeSessionUser');
+          if (badge && userSpan) {
+            userSpan.textContent = `${user.name} (${user.role === 'admin' ? 'Admin' : 'Student'})`;
+            badge.style.display = 'block';
+          }
+        }
+      }
+    });
+  </script>
+
+  <!-- Create Account Modal (Adapts to Student or Admin) -->
+  <div class="modal-overlay" id="createAccountModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="createModalTitle">🎓 Create Student Account</h3>
+        <button class="btn btn-ghost btn-icon sm" onclick="UI.closeModal('createAccountModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="createAccountForm" onsubmit="handleCreateAccount(event)">
+          <div class="form-group">
+            <label class="form-label" for="newName">Full Name</label>
+            <input type="text" id="newName" class="form-input" placeholder="Alex Rivera" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="newEmail">Email Address</label>
+            <input type="email" id="newEmail" class="form-input" placeholder="alex.rivera@campus.edu" required>
+          </div>
+
+          <!-- Student specific fields -->
+          <div class="grid-2" id="studentSpecificFields">
+            <div class="form-group">
+              <label class="form-label" for="newDept">Department</label>
+              <select id="newDept" class="form-select">
+                <option value="Computer Science" selected>Computer Science</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Business">Business</option>
+                <option value="Arts & Sciences">Arts & Sciences</option>
+                <option value="Medicine">Medicine</option>
+                <option value="Law">Law</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="newYear">Academic Year</label>
+              <select id="newYear" class="form-select">
+                <option value="1st Year" selected>1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+                <option value="Graduate">Graduate</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label" for="newPw">Password</label>
+              <div class="password-input-wrapper">
+                <input type="password" id="newPw" class="form-input" placeholder="Create password" required>
+                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('newPw', this)" aria-label="Show password" title="Show/Hide password">
+                  <svg class="eye-icon eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none;">
+                    <path d="m9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                    <line x1="2" x2="22" y1="2" y2="22"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="newPwConfirm">Confirm Password</label>
+              <div class="password-input-wrapper">
+                <input type="password" id="newPwConfirm" class="form-input" placeholder="Re-enter password" required>
+                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('newPwConfirm', this)" aria-label="Show password" title="Show/Hide password">
+                  <svg class="eye-icon eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg class="eye-icon eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none;">
+                    <path d="m9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+                    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+                    <line x1="2" x2="22" y1="2" y2="22"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="UI.closeModal('createAccountModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="document.getElementById('createAccountForm').requestSubmit()">Create
+          Account</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>
