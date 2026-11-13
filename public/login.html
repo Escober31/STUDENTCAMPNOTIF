@@ -123,6 +123,30 @@
           <a href="#" class="login-inline-link" onclick="handleForgotPassword(event)">Forgot Password?</a>
         </div>
 
+        <!-- Student/Admin Role Toggle (Hidden on student site) -->
+        <div class="role-toggle-wrapper" style="display:none;" id="roleToggleWrapper">
+          <div class="role-selector" id="roleSelector" role="tablist" aria-label="Select role">
+            <button type="button" class="role-option selected" data-role="student" id="role-student" onclick="selectRole('student')" role="tab" aria-selected="true">
+              <span class="role-icon">
+                <svg class="role-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                  <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                </svg>
+              </span>
+              <span class="role-name">Student</span>
+            </button>
+            <button type="button" class="role-option" data-role="admin" id="role-admin" onclick="selectRole('admin')" role="tab" aria-selected="false">
+              <span class="role-icon">
+                <svg class="role-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="m9 12 2 2 4-4"/>
+                </svg>
+              </span>
+              <span class="role-name">Admin / Staff</span>
+            </button>
+          </div>
+        </div>
+
         <div id="activeSessionBadge" style="display:none; margin-bottom:0.65rem; padding:0.5rem 0.75rem; background:var(--bg-glass); border:1px solid var(--primary-500); border-radius:var(--radius-md); text-align:center;">
           <p style="font-size:0.8rem; margin-bottom:0.35rem; color:var(--text-primary);">
             Currently signed in as <strong id="activeSessionUser" style="color:var(--primary-300);"></strong>
@@ -152,8 +176,8 @@
         </div>
       </form>
 
-      <!-- Compact Demo Logins Bar -->
-      <div class="login-demo-bar">
+      <!-- Compact Demo Logins Bar (Hidden on student site) -->
+      <div class="login-demo-bar" style="display:none;" id="loginDemoBar">
         <div class="login-demo-header">
           <span>⚡ Quick Demo Logins</span>
           <span style="font-size:0.68rem; color:var(--text-muted); font-weight:400;">(Click to fill)</span>
@@ -180,8 +204,36 @@
   </div>
 
   <script src="app.js"></script>
-  <script>
-    const selectedRole = 'student';
+  <script type="module">
+    import { auth, db } from "./firebase-config.js";
+    import {
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
+      deleteUser,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import {
+      doc,
+      getDoc,
+      setDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    let selectedRole = 'student';
+
+    function selectRole(role) {
+      selectedRole = role;
+      document.querySelectorAll('.role-option').forEach(el => {
+        el.classList.remove('selected');
+        el.setAttribute('aria-selected', 'false');
+      });
+      const target = document.querySelector(`[data-role="${role}"]`);
+      if (target) {
+        target.classList.add('selected');
+        target.setAttribute('aria-selected', 'true');
+      }
+    }
 
     function clearFieldError(fieldId) {
       const input = document.getElementById(fieldId);
@@ -210,13 +262,15 @@
 
     function handleForgotPassword(e) {
       if (e) e.preventDefault();
-      UI.toast('Forgot Password request received. For this demo, please click any Demo Login pill below or use password123.', 'info');
+      UI.toast('Please contact your campus administrator or check your university email to reset your password.', 'info');
     }
 
     function fillDemo(email, pwd) {
       clearErrors();
-      document.getElementById('email').value = email;
-      document.getElementById('password').value = pwd;
+      const emailInput = document.getElementById('email');
+      const pwInput = document.getElementById('password');
+      if (emailInput) emailInput.value = email;
+      if (pwInput) pwInput.value = pwd;
       selectedRole = 'student';
       UI.toast('Filled demo credentials for Student!', 'info');
     }
@@ -236,11 +290,13 @@
       btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
     }
 
-    function handleLogoutAndStay() {
-      localStorage.removeItem('campusnotify_user');
-      localStorage.removeItem('campusnotify_role');
-      sessionStorage.removeItem('campusnotify_user');
-      sessionStorage.removeItem('campusnotify_role');
+    async function handleLogoutAndStay() {
+      Auth.clearCache();
+      try {
+        await signOut(auth);
+      } catch (e) {
+        console.warn('Sign out warning:', e);
+      }
       const badge = document.getElementById('activeSessionBadge');
       if (badge) badge.style.display = 'none';
       UI.toast('Signed out. Please enter credentials to sign in.', 'info');
@@ -248,14 +304,18 @@
 
     function openCreateAccountModal(e) {
       if (e) e.preventDefault();
-      document.getElementById('createModalTitle').innerHTML = '🎓 Create Student Account';
-      document.getElementById('newName').placeholder = 'Alex Rivera';
-      document.getElementById('studentSpecificFields').style.display = 'grid';
-      document.getElementById('createAccountForm').reset();
+      const modalTitle = document.getElementById('createModalTitle');
+      if (modalTitle) modalTitle.innerHTML = '🎓 Create Student Account';
+      const nameInput = document.getElementById('newName');
+      if (nameInput) nameInput.placeholder = 'Alex Rivera';
+      const studentFields = document.getElementById('studentSpecificFields');
+      if (studentFields) studentFields.style.display = 'grid';
+      const form = document.getElementById('createAccountForm');
+      if (form) form.reset();
       UI.openModal('createAccountModal');
     }
 
-    function handleCreateAccount(e) {
+    async function handleCreateAccount(e) {
       e.preventDefault();
       const name = document.getElementById('newName').value.trim();
       const email = document.getElementById('newEmail').value.trim();
@@ -269,35 +329,101 @@
         return;
       }
 
+      if (pw.length < 6) {
+        UI.toast('Password must be at least 6 characters long.', 'warning');
+        return;
+      }
+
       if (pw !== pwConfirm) {
         UI.toast('Passwords do not match!', 'error');
         return;
       }
 
-      const newUser = Auth.registerUser({
-        name,
-        email,
-        password: pw,
-        role: 'student',
-        department: dept,
-        year: year,
-        title: ''
-      });
+      const submitBtn = document.querySelector('#createAccountModal .modal-footer .btn-primary');
+      const originalBtnText = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating Account...';
+      }
 
-      UI.closeModal('createAccountModal');
-      UI.toast(`Student account created for ${name}! Signing in...`, 'success');
+      let createdUser = null;
+      try {
+        // 1. Create auth user with Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, email, pw);
+        createdUser = userCredential.user;
 
-      // Pre-fill fields on login form
-      document.getElementById('email').value = email;
-      document.getElementById('password').value = pw;
+        // 2. Save document to student_account/{uid}
+        // RULES: This site must never write to admin_account.
+        await setDoc(doc(db, "student_account", createdUser.uid), {
+          uid: createdUser.uid,
+          fullName: name,
+          email: email,
+          department: dept,
+          year: year,
+          role: "student",
+          createdAt: serverTimestamp()
+        });
 
-      // Automatically sign in with the newly created profile
-      setTimeout(() => {
-        Auth.loginWithUser(newUser);
-      }, 700);
+        // 3. Cache student profile synchronously so Auth.getUser() and Auth.getRole() work
+        Auth.cacheStudentProfile(createdUser.uid, {
+          fullName: name,
+          email: email,
+          department: dept,
+          year: year,
+          role: "student"
+        }, email, true);
+
+        UI.closeModal('createAccountModal');
+        UI.toast(`Student account created for ${name}! Signing in...`, 'success');
+
+        // Pre-fill fields on login form
+        const formEmail = document.getElementById('email');
+        const formPw = document.getElementById('password');
+        if (formEmail) formEmail.value = email;
+        if (formPw) formPw.value = pw;
+
+        // Redirect to student dashboard
+        setTimeout(() => {
+          window.location.href = 'student_dashboard.html';
+        }, 700);
+
+      } catch (err) {
+        console.error('Account creation error:', err);
+
+        // If saving the document failed after auth user was created, delete the new auth user
+        if (createdUser) {
+          try {
+            await deleteUser(createdUser);
+            console.warn('Deleted orphan auth user after Firestore write error.');
+          } catch (delErr) {
+            console.error('Failed to cleanup auth user after document error:', delErr);
+          }
+        }
+
+        let friendlyMsg = 'Failed to create account. Please try again.';
+        const code = err.code || '';
+        if (code === 'auth/email-already-in-use') {
+          friendlyMsg = 'This email address is already in use. Please sign in instead.';
+        } else if (code === 'auth/weak-password') {
+          friendlyMsg = 'Password is too weak. Please use at least 6 characters.';
+        } else if (code === 'auth/invalid-email') {
+          friendlyMsg = 'Please enter a valid email address.';
+        } else if (code === 'auth/network-request-failed') {
+          friendlyMsg = 'Network error. Please check your internet connection.';
+        } else if (err.message) {
+          friendlyMsg = err.message;
+        }
+
+        UI.toast(friendlyMsg, 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalBtnText;
+        }
+      }
     }
 
-    function handleLogin(e) {
+    async function handleLogin(e) {
       e.preventDefault();
       clearErrors();
       const emailInput = document.getElementById('email');
@@ -320,51 +446,92 @@
         if (!hasEmpty) passwordInput.focus();
         hasEmpty = true;
       }
-      if (hasEmpty) {
-        return;
-      }
+      if (hasEmpty) return;
 
       if (spinner) spinner.style.display = 'inline-flex';
       if (btnText) btnText.textContent = 'Verifying...';
       btn.disabled = true;
 
-      setTimeout(() => {
-        // Strict credential validation
-        const authResult = Auth.authenticate(email, password, selectedRole, remember);
+      try {
+        // 1. Sign in with Firebase Auth
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-        if (!authResult.success) {
+        // 2. Check that student_account/{uid} exists (never read admin_account)
+        const studentDocRef = doc(db, "student_account", user.uid);
+        const studentSnap = await getDoc(studentDocRef);
+
+        if (!studentSnap.exists()) {
+          // Immediately signOut and show specific error
+          await signOut(auth);
+          Auth.clearCache();
+
           if (spinner) spinner.style.display = 'none';
           if (btnText) btnText.textContent = 'Sign In';
           btn.disabled = false;
 
-          const msg = (authResult.message || '').toLowerCase();
-          if (msg.includes('incorrect password') || msg.includes('password')) {
-            showFieldError('password', authResult.message);
-            passwordInput.focus();
-          } else if (msg.includes('email') || msg.includes('account') || msg.includes('user')) {
-            showFieldError('email', authResult.message);
-            emailInput.focus();
-          } else {
-            showFieldError('email', authResult.message);
-          }
-          UI.toast(authResult.message, 'error');
+          const notStudentMsg = "This is not a student account. Please use the admin website.";
+          showFieldError('email', notStudentMsg);
+          UI.toast(notStudentMsg, 'error');
           return;
         }
 
+        const studentData = studentSnap.data();
+
+        // 3. Cache student profile so Auth.getUser() and Auth.getRole() work synchronously
+        Auth.cacheStudentProfile(user.uid, studentData, user.email, remember);
+
         if (btnText) btnText.textContent = 'Signing in...';
-        UI.toast(`Welcome, ${authResult.user.name}!`, 'success');
-        // Set flag for daily login reward auto-prompt (students only)
-        if (authResult.user.role === 'student') {
-          localStorage.setItem('campusnotify_just_logged_in', 'true');
-        }
+        UI.toast(`Welcome, ${studentData.fullName || studentData.name || 'Student'}!`, 'success');
+
+        // Set flag for daily login reward auto-prompt
+        localStorage.setItem('campusnotify_just_logged_in', 'true');
+
         setTimeout(() => {
           window.location.href = 'student_dashboard.html';
         }, 500);
-      }, 550);
+
+      } catch (err) {
+        console.error('Sign in error:', err);
+        if (spinner) spinner.style.display = 'none';
+        if (btnText) btnText.textContent = 'Sign In';
+        btn.disabled = false;
+
+        let friendlyMsg = 'Invalid email or password. Please try again.';
+        const code = err.code || '';
+        if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+          friendlyMsg = 'Invalid email or password. Please verify your credentials.';
+          showFieldError('password', friendlyMsg);
+        } else if (code === 'auth/invalid-email') {
+          friendlyMsg = 'Please enter a valid email address.';
+          showFieldError('email', friendlyMsg);
+        } else if (code === 'auth/too-many-requests') {
+          friendlyMsg = 'Too many failed login attempts. Please wait a moment and try again.';
+          showFieldError('password', friendlyMsg);
+        } else if (code === 'auth/network-request-failed') {
+          friendlyMsg = 'Network error. Please check your internet connection.';
+        } else if (err.message) {
+          friendlyMsg = err.message;
+        }
+
+        UI.toast(friendlyMsg, 'error');
+      }
     }
 
-    // Display active session if user is logged in, but DO NOT auto-redirect away
-    // so that opening the website always displays the Login page first.
+    // Attach all handlers to window for inline HTML onclick/onsubmit attributes
+    window.selectRole = selectRole;
+    window.clearFieldError = clearFieldError;
+    window.clearErrors = clearErrors;
+    window.showFieldError = showFieldError;
+    window.handleForgotPassword = handleForgotPassword;
+    window.fillDemo = fillDemo;
+    window.togglePasswordVisibility = togglePasswordVisibility;
+    window.handleLogoutAndStay = handleLogoutAndStay;
+    window.openCreateAccountModal = openCreateAccountModal;
+    window.handleCreateAccount = handleCreateAccount;
+    window.handleLogin = handleLogin;
+
+    // Display active session if user is logged in
     window.addEventListener('DOMContentLoaded', () => {
       if (Auth.isLoggedIn()) {
         const user = Auth.getUser();
@@ -372,10 +539,35 @@
           const badge = document.getElementById('activeSessionBadge');
           const userSpan = document.getElementById('activeSessionUser');
           if (badge && userSpan) {
-            userSpan.textContent = `${user.name} (${user.role === 'admin' ? 'Admin' : 'Student'})`;
+            userSpan.textContent = `${user.fullName || user.name || 'Student'} (Student)`;
             badge.style.display = 'block';
           }
         }
+      }
+
+      // Also listen to auth state changes to detect if already logged in to Firebase
+      try {
+        onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            try {
+              const studentDoc = await getDoc(doc(db, "student_account", firebaseUser.uid));
+              if (studentDoc.exists()) {
+                const studentData = studentDoc.data();
+                Auth.cacheStudentProfile(firebaseUser.uid, studentData, firebaseUser.email, true);
+                const badge = document.getElementById('activeSessionBadge');
+                const userSpan = document.getElementById('activeSessionUser');
+                if (badge && userSpan) {
+                  userSpan.textContent = `${studentData.fullName || studentData.name || 'Student'} (Student)`;
+                  badge.style.display = 'block';
+                }
+              }
+            } catch (e) {
+              console.warn('Session verification in login.html:', e);
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('Firebase observer warning in login.html:', err);
       }
     });
   </script>

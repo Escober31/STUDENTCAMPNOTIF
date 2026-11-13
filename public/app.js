@@ -490,6 +490,44 @@ const Auth = {
     }
   },
 
+  cacheStudentProfile(uid, data, email, remember = true) {
+    if (!uid || !data) return null;
+    const name = data.fullName || data.name || 'Student';
+    const profile = {
+      uid: uid,
+      id: uid,
+      name: name,
+      fullName: name,
+      email: data.email || email || '',
+      role: 'student',
+      department: data.department || 'Computer Science',
+      year: data.year || '1st Year',
+      avatar: data.avatar || this.getInitials(name),
+      phone: data.phone || '',
+      bio: data.bio || `${data.year || '1st Year'} student in the Department of ${data.department || 'Computer Science'}.`,
+      createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString().split('T')[0] : data.createdAt) : new Date().toISOString().split('T')[0]
+    };
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem('campusnotify_user', JSON.stringify(profile));
+    storage.setItem('campusnotify_role', 'student');
+    if (remember) {
+      sessionStorage.removeItem('campusnotify_user');
+      sessionStorage.removeItem('campusnotify_role');
+    } else {
+      localStorage.removeItem('campusnotify_user');
+      localStorage.removeItem('campusnotify_role');
+    }
+    return profile;
+  },
+
+  clearCache() {
+    localStorage.removeItem('campusnotify_user');
+    localStorage.removeItem('campusnotify_role');
+    sessionStorage.removeItem('campusnotify_user');
+    sessionStorage.removeItem('campusnotify_role');
+    localStorage.removeItem('campusnotify_just_logged_in');
+  },
+
   updateUser(updatedFields) {
     const current = this.getUser();
     if (!current) return null;
@@ -501,24 +539,53 @@ const Auth = {
       sessionStorage.setItem('campusnotify_user', JSON.stringify(merged));
     }
     this.updateUserInStore(merged);
+
+    // Sync to Firestore student_account/{uid} in background if available
+    if (merged.uid) {
+      import('./firebase-config.js').then(async ({ db }) => {
+        const { doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+        const updatePayload = {};
+        if (updatedFields.name) updatePayload.fullName = updatedFields.name;
+        if (updatedFields.fullName) updatePayload.fullName = updatedFields.fullName;
+        if (updatedFields.department) updatePayload.department = updatedFields.department;
+        if (updatedFields.year) updatePayload.year = updatedFields.year;
+        if (updatedFields.bio !== undefined) updatePayload.bio = updatedFields.bio;
+        if (updatedFields.phone !== undefined) updatePayload.phone = updatedFields.phone;
+        if (updatedFields.avatar !== undefined) updatePayload.avatar = updatedFields.avatar;
+        if (Object.keys(updatePayload).length > 0) {
+          await updateDoc(doc(db, 'student_account', merged.uid), updatePayload);
+        }
+      }).catch(err => {
+        console.warn('Firestore user update deferred/failed:', err);
+      });
+    }
+
     return merged;
   },
 
-  logout() {
-    localStorage.removeItem('campusnotify_user');
-    localStorage.removeItem('campusnotify_role');
-    sessionStorage.removeItem('campusnotify_user');
-    sessionStorage.removeItem('campusnotify_role');
+  async logout() {
+    this.clearCache();
+    try {
+      const { auth } = await import('./firebase-config.js');
+      const { signOut } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js');
+      await signOut(auth);
+    } catch (e) {
+      console.warn('Firebase signOut error:', e);
+    }
     window.location.href = 'login.html';
   },
 
   getUser() {
-    const data = sessionStorage.getItem('campusnotify_user') || localStorage.getItem('campusnotify_user');
-    return data ? JSON.parse(data) : null;
+    try {
+      const data = sessionStorage.getItem('campusnotify_user') || localStorage.getItem('campusnotify_user');
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      return null;
+    }
   },
 
   getRole() {
-    return sessionStorage.getItem('campusnotify_role') || localStorage.getItem('campusnotify_role') || 'student';
+    return 'student';
   },
 
   isLoggedIn() {
@@ -531,8 +598,58 @@ const Auth = {
       return false;
     }
     return true;
+  },
+
+  watchAuthState() {
+    if (this._watchingAuth) return;
+    this._watchingAuth = true;
+
+    import('./firebase-config.js').then(async ({ auth, db, firebaseConfig }) => {
+      // If config is still placeholder, avoid premature redirect
+      if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === 'YOUR_API_KEY') {
+        console.info('[CampusNotify] Using placeholder Firebase credentials in firebase-config.js');
+        return;
+      }
+
+      const { onAuthStateChanged, signOut } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js');
+      const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+
+      onAuthStateChanged(auth, async (firebaseUser) => {
+        if (!firebaseUser) {
+          Auth.clearCache();
+          window.location.href = 'login.html';
+          return;
+        }
+
+        try {
+          const docRef = doc(db, 'student_account', firebaseUser.uid);
+          const docSnap = await getDoc(docRef);
+
+          if (!docSnap.exists()) {
+            console.warn('Authenticated user does not have a student_account document. Signing out.');
+            await signOut(auth);
+            Auth.clearCache();
+            window.location.href = 'login.html';
+            return;
+          }
+
+          // Refresh cached profile with live Firestore data
+          const studentData = docSnap.data();
+          Auth.cacheStudentProfile(firebaseUser.uid, studentData, firebaseUser.email);
+        } catch (err) {
+          console.error('Error verifying student_account in onAuthStateChanged:', err);
+        }
+      });
+    }).catch(err => {
+      console.warn('Could not initialize Firebase auth observer:', err);
+    });
   }
 };
+
+function logout() {
+  Auth.logout();
+}
+window.logout = logout;
 
 // ─── Audience & Targeting Helpers ───
 function normalizeDepartment(dept) {
@@ -1302,16 +1419,6 @@ function renderSidebar(activePage) {
           `}
         </div>
 
-        ${role === 'admin' ? `
-        <div class="nav-section">
-          <div class="nav-section-title">Administration</div>
-          <a href="user-management.html" class="nav-item ${activePage === 'users' ? 'active' : ''}" id="nav-users">
-            <span class="nav-icon">👥</span>
-            Users & Sign-ins
-          </a>
-        </div>
-        ` : ''}
-
         <div class="nav-section">
           <div class="nav-section-title">Account</div>
           <a href="profile-settings.html" class="nav-item ${activePage === 'profile' ? 'active' : ''}" id="nav-profile">
@@ -1425,6 +1532,10 @@ function initPage(activePage) {
     sidebarTarget.innerHTML = renderSidebar(activePage);
     initSidebar();
   }
+
+  // Attach Firebase auth state observer for protected pages
+  Auth.watchAuthState();
+
   return true;
 }
 
