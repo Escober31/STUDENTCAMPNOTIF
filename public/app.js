@@ -728,141 +728,84 @@ function isHubVisible(item, user) {
   return isCampusHubItem(item, user);
 }
 
-// ─── Announcements Store ───
+// ─── Announcements Store (Firebase: announcement_hub) ───
+// The admin site publishes announcements to the Firestore collection `announcement_hub`.
+// This store keeps a live, read-only copy for the student site. The last copy is cached in
+// localStorage so pages have something to draw before the first Firestore response arrives.
 const AnnouncementsStore = {
-  _key: 'campusnotify_announcements',
-  _deletedKey: 'campusnotify_announcements_deleted',
+  _collection: 'announcement_hub',
+  _cacheKey: 'campusnotify_announcement_hub_cache',
+  _items: null,
+  _unsubscribe: null,
+  _started: false,
 
-  _getDeletedIds() {
+  _readCache() {
     try {
-      const stored = localStorage.getItem(this._deletedKey);
-      return stored ? JSON.parse(stored) : [];
+      const cached = JSON.parse(localStorage.getItem(this._cacheKey) || '[]');
+      return Array.isArray(cached) ? cached : [];
     } catch (e) {
       return [];
     }
   },
 
-  _addDeletedId(id) {
-    const deleted = this._getDeletedIds();
-    const strId = String(id);
-    if (!deleted.includes(strId)) {
-      deleted.push(strId);
-      try {
-        localStorage.setItem(this._deletedKey, JSON.stringify(deleted));
-      } catch (e) {}
-    }
+  _fromDoc(snapshotDoc) {
+    const data = snapshotDoc.data({ serverTimestamps: 'estimate' });
+    const createdMs = data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0;
+    const date = data.date || (createdMs ? new Date(createdMs).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+    return {
+      id: snapshotDoc.id,
+      title: data.title || '',
+      body: data.body || '',
+      category: data.category || 'Academic',
+      priority: data.priority || 'normal',
+      pinned: !!data.pinned,
+      author: data.author || 'Admin',
+      date,
+      createdMs,
+      target: 'all',
+      department: 'all',
+      year: 'all',
+      targetDepartment: 'all',
+      targetYear: 'all'
+    };
+  },
+
+  // Start listening to Firestore once the student is signed in. Safe to call on every page.
+  startSync() {
+    if (this._started) return;
+    this._started = true;
+
+    Promise.all([
+      import('./firebase-config.js'),
+      import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')
+    ]).then(([config, authApi, firestore]) => {
+      authApi.onAuthStateChanged(config.auth, (user) => {
+        if (this._unsubscribe) { this._unsubscribe(); this._unsubscribe = null; }
+        if (!user) return;
+
+        this._unsubscribe = firestore.onSnapshot(
+          firestore.collection(config.db, this._collection),
+          (snapshot) => {
+            this._items = snapshot.docs.map(d => this._fromDoc(d));
+            try { localStorage.setItem(this._cacheKey, JSON.stringify(this._items)); } catch (e) {}
+            window.dispatchEvent(new CustomEvent('announcements:updated'));
+          },
+          (err) => {
+            console.error('[CampusNotify] Could not load announcement_hub', err);
+            window.dispatchEvent(new CustomEvent('announcements:error', { detail: err }));
+          }
+        );
+      });
+    }).catch((err) => {
+      this._started = false;
+      console.error('[CampusNotify] Could not start announcement sync', err);
+    });
   },
 
   getAll() {
-    const deletedIds = this._getDeletedIds();
-    const stored = localStorage.getItem(this._key);
-    if (stored !== null) {
-      try {
-        let parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(item => !deletedIds.includes(String(item.id)) && !isDemoCard(item));
-          if (filtered.length !== parsed.length) {
-            this.save(filtered);
-          }
-          return filtered;
-        }
-      } catch (e) {}
-    }
-    return [];
-  },
-
-  save(announcements) {
-    localStorage.setItem(this._key, JSON.stringify(announcements));
-  },
-
-  add(announcement) {
-    const all = this.getAll();
-    announcement.id = Date.now();
-    announcement.date = new Date().toISOString().split('T')[0];
-    announcement.author = Auth.getUser()?.name || 'Admin';
-
-    const target = announcement.target || 'all';
-    announcement.target = target;
-    announcement.department = target === 'students' ? (announcement.department || 'all') : 'all';
-    announcement.year = target === 'students' ? (announcement.year || 'all') : 'all';
-    announcement.targetDepartment = announcement.department;
-    announcement.targetYear = announcement.year;
-
-    all.unshift(announcement);
-    this.save(all);
-
-    // Automatically trigger notification with exact same audience targeting
-    try {
-      if (typeof NotificationsStore !== 'undefined') {
-        NotificationsStore.add({
-          type: announcement.priority === 'urgent' ? 'alert' : announcement.priority === 'important' ? 'warning' : 'info',
-          icon: '📢',
-          title: `New Announcement: ${announcement.title}`,
-          message: announcement.body ? (announcement.body.length > 120 ? announcement.body.substring(0, 117) + '...' : announcement.body) : 'A new campus announcement was posted.',
-          time: 'Just now',
-          target: announcement.target,
-          department: announcement.department,
-          year: announcement.year,
-          targetDepartment: announcement.department,
-          targetYear: announcement.year,
-          actionType: 'announcement',
-          actionId: announcement.id
-        });
-      }
-    } catch (e) {}
-
-    return announcement;
-  },
-
-  update(id, data) {
-    const all = this.getAll();
-    const idx = all.findIndex(a => String(a.id) === String(id));
-    if (idx !== -1) {
-      const target = data.target || all[idx].target || 'all';
-      const dept = target === 'students' ? (data.department || all[idx].department || 'all') : 'all';
-      const yr = target === 'students' ? (data.year || all[idx].year || 'all') : 'all';
-      all[idx] = {
-        ...all[idx],
-        ...data,
-        target,
-        department: dept,
-        year: yr,
-        targetDepartment: dept,
-        targetYear: yr
-      };
-      this.save(all);
-      return all[idx];
-    }
-    return null;
-  },
-
-  delete(id) {
-    if (id === null || id === undefined) return this.getAll();
-    this._addDeletedId(id);
-    const all = this.getAll().filter(a => String(a.id) !== String(id));
-    this.save(all);
-
-    // Clean up auxiliary stores
-    try {
-      if (typeof SavedStore !== 'undefined' && SavedStore.remove) {
-        SavedStore.remove('announcement', id);
-        SavedStore.remove('announcement', Number(id));
-      }
-      if (typeof ReminderStore !== 'undefined' && ReminderStore.remove) {
-        ReminderStore.remove('announcement', id);
-        ReminderStore.remove('announcement', Number(id));
-      }
-      if (typeof NotificationsStore !== 'undefined' && NotificationsStore._readMaster) {
-        const notifs = NotificationsStore._readMaster();
-        const cleaned = notifs.filter(n => !(n.actionType === 'announcement' && String(n.actionId) === String(id)));
-        if (cleaned.length !== notifs.length) {
-          NotificationsStore._saveMaster(cleaned);
-          NotificationsStore.updateSidebarBadge();
-        }
-      }
-    } catch (e) {}
-
-    return all;
+    if (this._items === null) this._items = this._readCache();
+    return this._items;
   },
 
   getForHub() {
@@ -1355,6 +1298,22 @@ if (typeof window !== 'undefined') {
 }
 
 // ─── Sidebar Component ───
+// ─── Universal Logo Fallback Handler ───
+window.handleLogoError = function(img) {
+  if (!img) return;
+  const exts = ['svg', 'jpg', 'jpeg', 'webp', 'png'];
+  const step = parseInt(img.dataset.logoStep || '0', 10);
+  if (step < exts.length) {
+    img.dataset.logoStep = String(step + 1);
+    img.src = 'images/logo.' + exts[step];
+  } else if (step === exts.length) {
+    img.dataset.logoStep = String(step + 1);
+    img.src = 'images/CampusNotif%20University%20Alert%20Logo.png';
+  } else {
+    img.onerror = null;
+  }
+};
+
 function renderSidebar(activePage) {
   const user = Auth.getUser();
   const role = Auth.getRole();
@@ -1370,7 +1329,9 @@ function renderSidebar(activePage) {
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
-        <div class="brand-icon">🔔</div>
+        <div class="brand-icon">
+          <img src="images/logo.png" onerror="window.handleLogoError && window.handleLogoError(this)" alt="CampusNotify Logo" class="brand-icon-img">
+        </div>
         <div>
           <h2>CampusNotify</h2>
           <span>School Portal</span>
@@ -1380,7 +1341,7 @@ function renderSidebar(activePage) {
       <nav class="sidebar-nav">
         <div class="nav-section">
           <div class="nav-section-title">Main</div>
-          <a href="dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}" id="nav-dashboard">
+          <a href="student_dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}" id="nav-dashboard">
             <span class="nav-icon">📊</span>
             Dashboard
           </a>
@@ -1535,6 +1496,9 @@ function initPage(activePage) {
 
   // Attach Firebase auth state observer for protected pages
   Auth.watchAuthState();
+
+  // Keep announcements in sync with Firestore (announcement_hub)
+  AnnouncementsStore.startSync();
 
   return true;
 }

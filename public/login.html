@@ -7,7 +7,24 @@
   <meta name="description"
     content="CampusNotify — Your school announcements, events, and notifications hub. Login to stay connected.">
   <title>CampusNotify — Login</title>
+  <link rel="icon" type="image/png" href="images/logo.png">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    window.handleLogoError = function(img) {
+      if (!img) return;
+      const exts = ['svg', 'jpg', 'jpeg', 'webp', 'png'];
+      const step = parseInt(img.dataset.logoStep || '0', 10);
+      if (step < exts.length) {
+        img.dataset.logoStep = String(step + 1);
+        img.src = 'images/logo.' + exts[step];
+      } else if (step === exts.length) {
+        img.dataset.logoStep = String(step + 1);
+        img.src = 'images/CampusNotif%20University%20Alert%20Logo.png';
+      } else {
+        img.onerror = null;
+      }
+    };
+  </script>
 </head>
 
 <body>
@@ -22,7 +39,9 @@
       <div class="hero-orb orb-blue-2"></div>
 
       <div class="login-hero-content animate-fade-in">
-        <div class="hero-logo">🔔</div>
+        <div class="hero-logo">
+          <img src="images/logo.png" onerror="window.handleLogoError && window.handleLogoError(this)" alt="CampusNotify Logo" class="hero-logo-img">
+        </div>
         <h1><span class="text-gradient">CampusNotify</span></h1>
         <p>Your centralized hub for school announcements, events, and real-time notifications. Stay informed, stay
           connected.</p>

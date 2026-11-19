@@ -7,6 +7,7 @@
   <meta name="description"
     content="CampusNotify Campus Hub — Your central feed for announcements, events, and notifications.">
   <title>Campus Hub — CampusNotify</title>
+  <link rel="icon" type="image/png" href="images/logo.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -40,8 +41,7 @@
       <!-- Filters -->
       <div class="hub-filters animate-fade-in">
         <div class="hub-type-filters" id="typeFilters">
-          <button class="hub-filter-chip active" data-type="all">All</button>
-          <button class="hub-filter-chip" data-type="announcement">📢 Announcements</button>
+          <button class="hub-filter-chip active" data-type="announcement">📢 Announcements</button>
           <button class="hub-filter-chip" data-type="event">📅 Events</button>
           <button class="hub-filter-chip" data-type="notification">🔔 Notifications</button>
           <button class="hub-filter-chip" data-type="poll">📊 Polls</button>
@@ -50,7 +50,7 @@
           <button class="hub-cat-chip active" data-cat="all">All</button>
           <button class="hub-cat-chip" data-cat="Academic">Academic</button>
           <button class="hub-cat-chip" data-cat="Student Life">Student Life</button>
-          <button class="hub-cat-chip" data-cat="Facility">Facilities</button>
+          <button class="hub-cat-chip" data-cat="Facilities">Facilities</button>
           <button class="hub-cat-chip" data-cat="Sports">Sports</button>
           <button class="hub-cat-chip" data-cat="Career">Career</button>
         </div>
@@ -152,7 +152,7 @@
   <script src="stores.js"></script>
   <script>
     // ─── State ───
-    let currentTypeFilter = 'all';
+    let currentTypeFilter = 'announcement';
     let currentCategoryFilter = 'all';
     let currentSearch = '';
 
@@ -188,6 +188,13 @@
           }
         }, 400);
       }
+
+      // Re-draw the feed whenever announcement_hub changes in Firebase
+      window.addEventListener('announcements:updated', () => renderFeed());
+      window.addEventListener('announcements:error', (e) => {
+        const denied = e.detail && e.detail.code === 'permission-denied';
+        UI.toast(denied ? 'Announcements are not available right now (permission denied).' : 'Could not load announcements.', 'error');
+      });
 
       // Search
       const searchInput = document.getElementById('hubSearch');
@@ -372,30 +379,30 @@
 
       return `
         <div class="hub-feed-item hub-item-announcement animate-slide-up" id="hub-ann-${a.id}">
-          <div class="card-priority ${a.priority}"></div>
+          <div class="card-priority ${escapeHtml(a.priority)}"></div>
           <div style="padding-left:12px;">
             <div class="hub-type-label type-announcement">📢 ANNOUNCEMENT</div>
             <div class="flex items-center gap-md" style="flex-wrap:wrap; margin-bottom:var(--space-sm);">
               ${a.pinned ? '<span class="badge badge-primary">📌 Pinned</span>' : ''}
               ${UI.priorityBadge(a.priority)}
-              ${UI.categoryBadge(a.category)}
+              ${UI.categoryBadge(escapeHtml(a.category))}
             </div>
-            <h3 style="margin-bottom:var(--space-sm); cursor:pointer;" onclick="readAnnouncement(${a.id})">${a.title}</h3>
-            <div class="announcement-body">${a.body}</div>
+            <h3 style="margin-bottom:var(--space-sm); cursor:pointer;" onclick="readAnnouncement('${a.id}')">${escapeHtml(a.title)}</h3>
+            <div class="announcement-body">${escapeHtml(a.body)}</div>
             <div class="announcement-meta">
-              <span>✍️ ${a.author}</span>
+              <span>✍️ ${escapeHtml(a.author)}</span>
               <span>📅 ${UI.formatDate(a.date)}</span>
             </div>
             <div class="hub-actions">
-              <button class="hub-action-btn save-btn ${isSaved ? 'active' : ''}" data-save="announcement-${a.id}" onclick="toggleSave('announcement', ${a.id})">
+              <button class="hub-action-btn save-btn ${isSaved ? 'active' : ''}" data-save="announcement-${a.id}" onclick="toggleSave('announcement', '${a.id}')">
                 ${isSaved ? '✓ Saved' : '🔖 Save'}
               </button>
               ${showAck ? `
-              <button class="hub-action-btn ack-btn ${isAcked ? 'active' : ''}" data-ack="${a.id}" onclick="acknowledgeAnn(${a.id})" ${isAcked ? 'disabled' : ''}>
+              <button class="hub-action-btn ack-btn ${isAcked ? 'active' : ''}" data-ack="${a.id}" onclick="acknowledgeAnn('${a.id}')" ${isAcked ? 'disabled' : ''}>
                 ${isAcked ? '✓ Acknowledged' : '✓ Acknowledge'}
               </button>
               ` : ''}
-              <button class="hub-action-btn" onclick="readAnnouncement(${a.id})">Read More →</button>
+              <button class="hub-action-btn" onclick="readAnnouncement('${a.id}')">Read More →</button>
             </div>
           </div>
         </div>
@@ -466,7 +473,7 @@
 
       let actionHtml = '';
       if (n.actionType === 'announcement') {
-        actionHtml = `<button class="hub-action-btn" onclick="readAnnouncement(${n.actionId})">View Announcement →</button>`;
+        actionHtml = `<button class="hub-action-btn" onclick="readAnnouncement('${n.actionId}')">View Announcement →</button>`;
       } else if (n.actionType === 'event') {
         actionHtml = `<button class="hub-action-btn" onclick="readEvent(${n.actionId})">View Event →</button>`;
       }
@@ -573,11 +580,11 @@
       const showAck = a.priority === 'urgent' || a.priority === 'important';
 
       document.getElementById('readAnnFooter').innerHTML = `
-        <button class="hub-action-btn save-btn ${isSaved ? 'active' : ''}" onclick="toggleSave('announcement', ${id}); readAnnouncement(${id});">
+        <button class="hub-action-btn save-btn ${isSaved ? 'active' : ''}" onclick="toggleSave('announcement', '${id}'); readAnnouncement('${id}');">
           ${isSaved ? '✓ Saved' : '🔖 Save'}
         </button>
         ${showAck ? `
-        <button class="hub-action-btn ack-btn ${isAcked ? 'active' : ''}" onclick="acknowledgeAnn(${id}); readAnnouncement(${id});" ${isAcked ? 'disabled' : ''}>
+        <button class="hub-action-btn ack-btn ${isAcked ? 'active' : ''}" onclick="acknowledgeAnn('${id}'); readAnnouncement('${id}');" ${isAcked ? 'disabled' : ''}>
           ${isAcked ? '✓ Acknowledged' : '✓ Acknowledge'}
         </button>
         ` : ''}
