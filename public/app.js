@@ -728,245 +728,124 @@ function isHubVisible(item, user) {
   return isCampusHubItem(item, user);
 }
 
-// ─── Announcements Store (Firebase: announcement_hub) ───
-// The admin site publishes announcements to the Firestore collection `announcement_hub`.
-// This store keeps a live, read-only copy for the student site. The last copy is cached in
-// localStorage so pages have something to draw before the first Firestore response arrives.
-const AnnouncementsStore = {
-  _collection: 'announcement_hub',
-  _cacheKey: 'campusnotify_announcement_hub_cache',
-  _items: null,
-  _unsubscribe: null,
-  _started: false,
+// ─── Hub stores (Firebase: announcement_hub, event_hub) ───
+// The admin site publishes to Firestore. Each store below keeps a live, read-only copy for
+// the student site. The last copy is cached in localStorage so pages have something to draw
+// before the first Firestore response arrives.
+function localDateString(ms) {
+  const d = ms ? new Date(ms) : new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 
-  _readCache() {
-    try {
-      const cached = JSON.parse(localStorage.getItem(this._cacheKey) || '[]');
-      return Array.isArray(cached) ? cached : [];
-    } catch (e) {
-      return [];
-    }
-  },
+function createHubStore({ collectionName, cacheKey, updatedEvent, errorEvent, mapDoc }) {
+  return {
+    _items: null,
+    _unsubscribe: null,
+    _started: false,
 
-  _fromDoc(snapshotDoc) {
-    const data = snapshotDoc.data({ serverTimestamps: 'estimate' });
-    const createdMs = data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0;
-    const date = data.date || (createdMs ? new Date(createdMs).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
-    return {
-      id: snapshotDoc.id,
-      title: data.title || '',
-      body: data.body || '',
-      category: data.category || 'Academic',
-      priority: data.priority || 'normal',
-      pinned: !!data.pinned,
-      author: data.author || 'Admin',
-      date,
-      createdMs,
-      target: 'all',
-      department: 'all',
-      year: 'all',
-      targetDepartment: 'all',
-      targetYear: 'all'
-    };
-  },
-
-  // Start listening to Firestore once the student is signed in. Safe to call on every page.
-  startSync() {
-    if (this._started) return;
-    this._started = true;
-
-    Promise.all([
-      import('./firebase-config.js'),
-      import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),
-      import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')
-    ]).then(([config, authApi, firestore]) => {
-      authApi.onAuthStateChanged(config.auth, (user) => {
-        if (this._unsubscribe) { this._unsubscribe(); this._unsubscribe = null; }
-        if (!user) return;
-
-        this._unsubscribe = firestore.onSnapshot(
-          firestore.collection(config.db, this._collection),
-          (snapshot) => {
-            this._items = snapshot.docs.map(d => this._fromDoc(d));
-            try { localStorage.setItem(this._cacheKey, JSON.stringify(this._items)); } catch (e) {}
-            window.dispatchEvent(new CustomEvent('announcements:updated'));
-          },
-          (err) => {
-            console.error('[CampusNotify] Could not load announcement_hub', err);
-            window.dispatchEvent(new CustomEvent('announcements:error', { detail: err }));
-          }
-        );
-      });
-    }).catch((err) => {
-      this._started = false;
-      console.error('[CampusNotify] Could not start announcement sync', err);
-    });
-  },
-
-  getAll() {
-    if (this._items === null) this._items = this._readCache();
-    return this._items;
-  },
-
-  getForHub() {
-    const user = Auth.getUser();
-    return this.getAll().filter(item => isHubVisible(item, user));
-  },
-
-  getById(id) {
-    return this.getAll().find(a => String(a.id) === String(id));
-  }
-};
-
-// ─── Events Store (With Admin CRUD) ───
-const EventsStore = {
-  _key: 'campusnotify_events',
-  _deletedKey: 'campusnotify_events_deleted',
-
-  _getDeletedIds() {
-    try {
-      const stored = localStorage.getItem(this._deletedKey);
-      return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      return [];
-    }
-  },
-
-  _addDeletedId(id) {
-    const deleted = this._getDeletedIds();
-    const strId = String(id);
-    if (!deleted.includes(strId)) {
-      deleted.push(strId);
+    _readCache() {
       try {
-        localStorage.setItem(this._deletedKey, JSON.stringify(deleted));
-      } catch (e) {}
-    }
-  },
+        const cached = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+        return Array.isArray(cached) ? cached : [];
+      } catch (e) {
+        return [];
+      }
+    },
 
-  getAll() {
-    const deletedIds = this._getDeletedIds();
-    const stored = localStorage.getItem(this._key);
-    if (stored !== null) {
-      try {
-        let parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const filtered = parsed.filter(item => !deletedIds.includes(String(item.id)) && !isDemoCard(item));
-          if (filtered.length !== parsed.length) {
-            this.save(filtered);
-          }
-          return filtered;
-        }
-      } catch (e) {}
-    }
-    return [];
-  },
+    // Start listening once the student is signed in. Safe to call on every page.
+    startSync() {
+      if (this._started) return;
+      this._started = true;
 
-  save(events) {
-    localStorage.setItem(this._key, JSON.stringify(events));
-  },
+      Promise.all([
+        import('./firebase-config.js'),
+        import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')
+      ]).then(([config, authApi, firestore]) => {
+        authApi.onAuthStateChanged(config.auth, (user) => {
+          if (this._unsubscribe) { this._unsubscribe(); this._unsubscribe = null; }
+          if (!user) return;
 
-  add(event) {
-    const all = this.getAll();
-    event.id = Date.now();
-    event.attendees = event.attendees || 0;
-
-    const target = event.target || 'all';
-    event.target = target;
-    event.department = target === 'students' ? (event.department || 'all') : 'all';
-    event.year = target === 'students' ? (event.year || 'all') : 'all';
-    event.targetDepartment = event.department;
-    event.targetYear = event.year;
-
-    all.unshift(event);
-    this.save(all);
-
-    // Automatically trigger notification with exact same audience targeting
-    try {
-      if (typeof NotificationsStore !== 'undefined') {
-        NotificationsStore.add({
-          type: 'info',
-          icon: '📅',
-          title: `New Event: ${event.title}`,
-          message: event.description ? (event.description.length > 120 ? event.description.substring(0, 117) + '...' : event.description) : `${event.date} at ${event.location}`,
-          time: 'Just now',
-          target: event.target,
-          department: event.department,
-          year: event.year,
-          targetDepartment: event.department,
-          targetYear: event.year,
-          actionType: 'event',
-          actionId: event.id
+          this._unsubscribe = firestore.onSnapshot(
+            firestore.collection(config.db, collectionName),
+            (snapshot) => {
+              this._items = snapshot.docs.map((snapshotDoc) => {
+                const data = snapshotDoc.data({ serverTimestamps: 'estimate' });
+                const createdMs = data.createdAt && data.createdAt.toMillis ? data.createdAt.toMillis() : 0;
+                return mapDoc(snapshotDoc.id, data, createdMs);
+              });
+              try { localStorage.setItem(cacheKey, JSON.stringify(this._items)); } catch (e) {}
+              window.dispatchEvent(new CustomEvent(updatedEvent));
+            },
+            (err) => {
+              console.error('[CampusNotify] Could not load ' + collectionName, err);
+              window.dispatchEvent(new CustomEvent(errorEvent, { detail: err }));
+            }
+          );
         });
-      }
-    } catch (e) {}
+      }).catch((err) => {
+        this._started = false;
+        console.error('[CampusNotify] Could not start ' + collectionName + ' sync', err);
+      });
+    },
 
-    return event;
-  },
+    getAll() {
+      if (this._items === null) this._items = this._readCache();
+      return this._items;
+    },
 
-  update(id, data) {
-    const all = this.getAll();
-    const idx = all.findIndex(e => String(e.id) === String(id));
-    if (idx !== -1) {
-      const target = data.target || all[idx].target || 'all';
-      const dept = target === 'students' ? (data.department || all[idx].department || 'all') : 'all';
-      const yr = target === 'students' ? (data.year || all[idx].year || 'all') : 'all';
-      all[idx] = {
-        ...all[idx],
-        ...data,
-        target,
-        department: dept,
-        year: yr,
-        targetDepartment: dept,
-        targetYear: yr
-      };
-      this.save(all);
-      return all[idx];
+    getForHub() {
+      const user = Auth.getUser();
+      return this.getAll().filter(item => isHubVisible(item, user));
+    },
+
+    getById(id) {
+      return this.getAll().find(item => String(item.id) === String(id));
     }
-    return null;
-  },
+  };
+}
 
-  delete(id) {
-    if (id === null || id === undefined) return this.getAll();
-    this._addDeletedId(id);
-    const all = this.getAll().filter(e => String(e.id) !== String(id));
-    this.save(all);
+// Everything published to the hub collections targets all students.
+const HUB_AUDIENCE = { target: 'all', department: 'all', year: 'all', targetDepartment: 'all', targetYear: 'all' };
 
-    // Clean up auxiliary stores
-    try {
-      if (typeof SavedStore !== 'undefined' && SavedStore.remove) {
-        SavedStore.remove('event', id);
-        SavedStore.remove('event', Number(id));
-      }
-      if (typeof ReminderStore !== 'undefined' && ReminderStore.remove) {
-        ReminderStore.remove('event', id);
-        ReminderStore.remove('event', Number(id));
-      }
-      if (typeof EventInterestStore !== 'undefined' && EventInterestStore.getAll) {
-        const interests = EventInterestStore.getAll().filter(item => String(item.eventId) !== String(id));
-        EventInterestStore._save(interests);
-      }
-      if (typeof NotificationsStore !== 'undefined' && NotificationsStore._readMaster) {
-        const notifs = NotificationsStore._readMaster();
-        const cleaned = notifs.filter(n => !(n.actionType === 'event' && String(n.actionId) === String(id)));
-        if (cleaned.length !== notifs.length) {
-          NotificationsStore._saveMaster(cleaned);
-          NotificationsStore.updateSidebarBadge();
-        }
-      }
-    } catch (e) {}
+const AnnouncementsStore = createHubStore({
+  collectionName: 'announcement_hub',
+  cacheKey: 'campusnotify_announcement_hub_cache',
+  updatedEvent: 'announcements:updated',
+  errorEvent: 'announcements:error',
+  mapDoc: (id, data, createdMs) => ({
+    id,
+    title: data.title || '',
+    body: data.body || '',
+    category: data.category || 'Academic',
+    priority: data.priority || 'normal',
+    pinned: !!data.pinned,
+    author: data.author || 'Admin',
+    date: data.date || localDateString(createdMs),
+    createdMs,
+    ...HUB_AUDIENCE
+  })
+});
 
-    return all;
-  },
-
-  getForHub() {
-    const user = Auth.getUser();
-    return this.getAll().filter(item => isHubVisible(item, user));
-  },
-
-  getById(id) {
-    return this.getAll().find(e => String(e.id) === String(id));
-  }
-};
+const EventsStore = createHubStore({
+  collectionName: 'event_hub',
+  cacheKey: 'campusnotify_event_hub_cache',
+  updatedEvent: 'events:updated',
+  errorEvent: 'events:error',
+  mapDoc: (id, data, createdMs) => ({
+    id,
+    title: data.title || '',
+    description: data.description || '',
+    category: data.category || 'Academic',
+    date: data.date || localDateString(createdMs),
+    time: data.time || '',
+    location: data.location || '',
+    author: data.author || 'Admin',
+    attendees: 0,
+    createdMs,
+    ...HUB_AUDIENCE
+  })
+});
 
 // ─── Notifications Store ───
 const NotificationsStore = {
@@ -1497,8 +1376,9 @@ function initPage(activePage) {
   // Attach Firebase auth state observer for protected pages
   Auth.watchAuthState();
 
-  // Keep announcements in sync with Firestore (announcement_hub)
+  // Keep announcements and events in sync with Firestore
   AnnouncementsStore.startSync();
+  EventsStore.startSync();
 
   return true;
 }

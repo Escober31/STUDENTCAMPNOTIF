@@ -189,11 +189,13 @@
         }, 400);
       }
 
-      // Re-draw the feed whenever announcement_hub changes in Firebase
-      window.addEventListener('announcements:updated', () => renderFeed());
-      window.addEventListener('announcements:error', (e) => {
-        const denied = e.detail && e.detail.code === 'permission-denied';
-        UI.toast(denied ? 'Announcements are not available right now (permission denied).' : 'Could not load announcements.', 'error');
+      // Re-draw the feed whenever announcement_hub or event_hub changes in Firebase
+      ['announcements', 'events'].forEach((name) => {
+        window.addEventListener(name + ':updated', () => renderFeed());
+        window.addEventListener(name + ':error', (e) => {
+          const denied = e.detail && e.detail.code === 'permission-denied';
+          UI.toast(denied ? 'Some ' + name + ' are not available right now (permission denied).' : 'Could not load ' + name + '.', 'error');
+        });
       });
 
       // Search
@@ -431,35 +433,35 @@
             </div>
             <div style="flex:1; min-width:0;">
               <div class="flex items-center gap-md" style="flex-wrap:wrap; margin-bottom:var(--space-sm);">
-                <span class="tag">${ev.category}</span>
+                <span class="tag">${escapeHtml(ev.category)}</span>
                 <span class="text-muted text-sm">${dayName}</span>
               </div>
-              <h3 style="margin-bottom:var(--space-sm); cursor:pointer;" onclick="readEvent(${ev.id})">${ev.title}</h3>
-              <p class="text-secondary text-sm" style="margin-bottom:var(--space-md); line-height:1.6;">${ev.description}</p>
+              <h3 style="margin-bottom:var(--space-sm); cursor:pointer;" onclick="readEvent('${ev.id}')">${escapeHtml(ev.title)}</h3>
+              <p class="text-secondary text-sm" style="margin-bottom:var(--space-md); line-height:1.6;">${escapeHtml(ev.description)}</p>
               <div class="flex items-center gap-lg" style="flex-wrap:wrap;">
-                <span class="text-muted text-sm">📍 ${ev.location}</span>
-                <span class="text-muted text-sm">🕐 ${ev.time}</span>
+                <span class="text-muted text-sm">📍 ${escapeHtml(ev.location)}</span>
+                <span class="text-muted text-sm">🕐 ${escapeHtml(ev.time)}</span>
                 <span class="text-muted text-sm" id="interest-count-${ev.id}">👥 ${interestedCount.toLocaleString()} interested</span>
               </div>
             </div>
           </div>
           <div class="hub-actions">
-            <button class="hub-action-btn interest-btn ${isInterested ? 'active' : ''}" data-interest="${ev.id}" onclick="toggleInterest(${ev.id})">
+            <button class="hub-action-btn interest-btn ${isInterested ? 'active' : ''}" data-interest="${ev.id}" onclick="toggleInterest('${ev.id}')">
               ${isInterested ? '✓ Interested' : '👍 Interested'}
             </button>
-            <button class="hub-action-btn save-btn ${isSaved ? 'active' : ''}" data-save="event-${ev.id}" onclick="toggleSave('event', ${ev.id})">
+            <button class="hub-action-btn save-btn ${isSaved ? 'active' : ''}" data-save="event-${ev.id}" onclick="toggleSave('event', '${ev.id}')">
               ${isSaved ? '✓ Saved' : '🔖 Save'}
             </button>
-            <button class="hub-action-btn" onclick="addToCalendar(${ev.id})">📅 Add to Calendar</button>
+            <button class="hub-action-btn" onclick="addToCalendar('${ev.id}')">📅 Add to Calendar</button>
             <div class="reminder-wrapper">
-              <button class="hub-action-btn reminder-btn ${reminder ? 'active' : ''}" data-reminder="event-${ev.id}" onclick="toggleReminderMenu(this, 'event', ${ev.id})">
+              <button class="hub-action-btn reminder-btn ${reminder ? 'active' : ''}" data-reminder="event-${ev.id}" onclick="toggleReminderMenu(this, 'event', '${ev.id}')">
                 ${reminder ? '🔔 ' + ReminderStore.getTimingLabel(reminder.timing) : '🔔 Remind Me'}
               </button>
               <div class="reminder-menu" id="reminder-menu-event-${ev.id}">
-                <div class="reminder-option" onclick="setReminder('event', ${ev.id}, '10min')">⏰ 10 minutes before</div>
-                <div class="reminder-option" onclick="setReminder('event', ${ev.id}, '1hour')">⏰ 1 hour before</div>
-                <div class="reminder-option" onclick="setReminder('event', ${ev.id}, '1day')">⏰ 1 day before</div>
-                ${reminder ? '<div class="reminder-option remove" onclick="removeReminder(\'event\', ' + ev.id + ')">❌ Remove Reminder</div>' : ''}
+                <div class="reminder-option" onclick="setReminder('event', '${ev.id}', '10min')">⏰ 10 minutes before</div>
+                <div class="reminder-option" onclick="setReminder('event', '${ev.id}', '1hour')">⏰ 1 hour before</div>
+                <div class="reminder-option" onclick="setReminder('event', '${ev.id}', '1day')">⏰ 1 day before</div>
+                ${reminder ? '<div class="reminder-option remove" onclick="removeReminder(\'event\', \'' + ev.id + '\')">❌ Remove Reminder</div>' : ''}
               </div>
             </div>
           </div>
@@ -475,7 +477,7 @@
       if (n.actionType === 'announcement') {
         actionHtml = `<button class="hub-action-btn" onclick="readAnnouncement('${n.actionId}')">View Announcement →</button>`;
       } else if (n.actionType === 'event') {
-        actionHtml = `<button class="hub-action-btn" onclick="readEvent(${n.actionId})">View Event →</button>`;
+        actionHtml = `<button class="hub-action-btn" onclick="readEvent('${n.actionId}')">View Event →</button>`;
       }
 
       const hasActions = actionHtml || isUnread;
@@ -612,13 +614,13 @@
       const isSaved = SavedStore.isSaved('event', id);
 
       document.getElementById('readEvFooter').innerHTML = `
-        <button class="hub-action-btn interest-btn ${isInterested ? 'active' : ''}" onclick="toggleInterest(${id}); readEvent(${id});">
+        <button class="hub-action-btn interest-btn ${isInterested ? 'active' : ''}" onclick="toggleInterest('${id}'); readEvent('${id}');">
           ${isInterested ? '✓ Interested' : '👍 Interested'}
         </button>
-        <button class="hub-action-btn save-btn ${isSaved ? 'active' : ''}" onclick="toggleSave('event', ${id}); readEvent(${id});">
+        <button class="hub-action-btn save-btn ${isSaved ? 'active' : ''}" onclick="toggleSave('event', '${id}'); readEvent('${id}');">
           ${isSaved ? '✓ Saved' : '🔖 Save'}
         </button>
-        <button class="hub-action-btn" onclick="addToCalendar(${id})">📅 Add to Calendar</button>
+        <button class="hub-action-btn" onclick="addToCalendar('${id}')">📅 Add to Calendar</button>
         <button class="btn btn-secondary" onclick="UI.closeModal('readEventModal')">Close</button>
       `;
 
@@ -700,10 +702,10 @@
 
       if (menu) {
         menu.innerHTML = `
-          <div class="reminder-option" onclick="setReminder('${type}', ${id}, '10min')">⏰ 10 minutes before</div>
-          <div class="reminder-option" onclick="setReminder('${type}', ${id}, '1hour')">⏰ 1 hour before</div>
-          <div class="reminder-option" onclick="setReminder('${type}', ${id}, '1day')">⏰ 1 day before</div>
-          <div class="reminder-option remove" onclick="removeReminder('${type}', ${id})">❌ Remove Reminder</div>
+          <div class="reminder-option" onclick="setReminder('${type}', '${id}', '10min')">⏰ 10 minutes before</div>
+          <div class="reminder-option" onclick="setReminder('${type}', '${id}', '1hour')">⏰ 1 hour before</div>
+          <div class="reminder-option" onclick="setReminder('${type}', '${id}', '1day')">⏰ 1 day before</div>
+          <div class="reminder-option remove" onclick="removeReminder('${type}', '${id}')">❌ Remove Reminder</div>
         `;
       }
 
@@ -724,9 +726,9 @@
 
       if (menu) {
         menu.innerHTML = `
-          <div class="reminder-option" onclick="setReminder('${type}', ${id}, '10min')">⏰ 10 minutes before</div>
-          <div class="reminder-option" onclick="setReminder('${type}', ${id}, '1hour')">⏰ 1 hour before</div>
-          <div class="reminder-option" onclick="setReminder('${type}', ${id}, '1day')">⏰ 1 day before</div>
+          <div class="reminder-option" onclick="setReminder('${type}', '${id}', '10min')">⏰ 10 minutes before</div>
+          <div class="reminder-option" onclick="setReminder('${type}', '${id}', '1hour')">⏰ 1 hour before</div>
+          <div class="reminder-option" onclick="setReminder('${type}', '${id}', '1day')">⏰ 1 day before</div>
         `;
       }
 
